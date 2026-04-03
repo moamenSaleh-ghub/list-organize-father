@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>منشئ قائمة الغد</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #f9fafb;
+      --muted: #cbd5e1;
+      --border: #334155;
+      --accent: #22c55e;
+      --accent-2: #16a34a;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 280px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+      resize: vertical;
+      direction: rtl;
+      text-align: right;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 14px 0 0;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #052e16;
+    }
+
+    .primary:hover {
+      background: var(--accent-2);
+      color: white;
+    }
+
+    .secondary {
+      background: #334155;
+      color: white;
+    }
+
+    .danger {
+      background: #7f1d1d;
+      color: white;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .out {
+      margin-top: 18px;
+    }
+
+    .status {
+      min-height: 22px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .ok { color: #86efac; }
+    .err { color: #fca5a5; }
+
+    .hint {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .small {
+      min-height: 120px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>منشئ قائمة الغد</h1>
+      <p>اضغط على إنشاء ثم نسخ. عدّل التاريخ الأساسي أو الأسماء فقط عند الحاجة.</p>
+
+      <textarea id="baseList" class="hidden small"></textarea>
+
+      <div class="buttons">
+        <button class="primary" id="buildBtn">إنشاء</button>
+        <button class="secondary" id="copyBtn">نسخ</button>
+        <button class="secondary" id="toggleEditBtn">تعديل القائمة الأساسية</button>
+        <button class="secondary" id="setTodayBtn">تعيين التاريخ الأساسي = اليوم</button>
+        <button class="danger" id="resetBtn">إعادة تعيين</button>
+      </div>
+
+      <div class="meta" id="meta"></div>
+      <div class="status" id="status"></div>
+
+      <div class="out">
+        <textarea id="output" placeholder="النتيجة ستظهر هنا..." readonly></textarea>
+        <div class="hint">على سفاري في الآيفون: مشاركة ← إضافة إلى الشاشة الرئيسية</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_LIST_KEY = "tomorrow-list-base-v2";
+    const STORAGE_DATE_KEY = "tomorrow-list-base-date-v2";
+
+    const defaultBaseDate = "2026-04-01";
+
+    const defaultBaseList = `الجزء 1 ام محمد ابو جوهر + منال ام خليل
+الجزء 2 ام طارق عفيفي + شهد واكد
+الجزء 3 رينا
+الجزء 4 ام خالد سليمان + اسراء هبرات
+الجزء 5 ام ابراهيم عثمان
+الجزء 6 ام محمد مره (سهى)
+الجزء 7 هنادي سليمان
+الجزء 8 ساميه
+الجزء 9 ام سالم نصار
+الجزء 10 ناهد عطالله
+الجزء 11 ام سامي طه
+الجزء 12 سحر نجم ( ام عماد )
+الجزء 13 ام محمد عوايسه (رلى)
+الجزء 14 ام محمد عثمان(اسمهان)
+الجزء 15 عاليا ام ابراهيم
+الجزء 16 عبير ام ميس + مريم
+الجزء 17 سلام ام عهد + رهف
+الجزء 18 آلاء خطيب
+الجزء 19 ام محمد شما + هتاف ام خالد
+الجزء 20 بسمله صالح + ام محمد عبد النبي
+الجزء 21 ام عبدالغني ابو قرطومه
+الجزء 22 ام محمد صالح(لحاظ)+ام الثائر حجه
+الجزء 23 نوال ابراهيم
+الجزء 24 عرين واكد + منيه عبد الخالق
+الجزء 25 ام العبد سليمان
+الجزء 26 ام ابراهيم علوش
+الجزء 27 ام سليم سليمان (هيا)
+الجزء 28 فداء هبرات
+الجزء 29 ام سلام قبلاوي
+الجزء 30 نصره طه (ام ابراهيم)`;
+
+    const baseListEl = document.getElementById("baseList");
+    const outputEl = document.getElementById("output");
+    const buildBtn = document.getElementById("buildBtn");
+    const copyBtn = document.getElementById("copyBtn");
+    const toggleEditBtn = document.getElementById("toggleEditBtn");
+    const setTodayBtn = document.getElementById("setTodayBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const statusEl = document.getElementById("status");
+    const metaEl = document.getElementById("meta");
+
+    function setStatus(message, type = "") {
+      statusEl.textContent = message;
+      statusEl.className = "status";
+      if (type) statusEl.classList.add(type);
+    }
+
+    function normalizeArabicSpaces(text) {
+      return text
+        .replace(/\r/g, "")
+        .replace(/\u00A0/g, " ")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n[ \t]+/g, "\n")
+        .trim();
+    }
+
+    function formatDDMMYYYY(dateObj) {
+      const dd = String(dateObj.getDate()).padStart(2, "0");
+      const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const yyyy = dateObj.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    function toLocalDateOnly(dateObj) {
+      return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+    }
+
+    function parseISODateToLocal(isoDate) {
+      const [year, month, day] = isoDate.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function todayISO() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function saveBaseList() {
+      localStorage.setItem(STORAGE_LIST_KEY, baseListEl.value.trim());
+    }
+
+    function loadBaseList() {
+      const saved = localStorage.getItem(STORAGE_LIST_KEY);
+      baseListEl.value = saved && saved.trim() ? saved : defaultBaseList;
+    }
+
+    function saveBaseDate(isoDate) {
+      localStorage.setItem(STORAGE_DATE_KEY, isoDate);
+    }
+
+    function loadBaseDate() {
+      return localStorage.getItem(STORAGE_DATE_KEY) || defaultBaseDate;
+    }
+
+    function resetAll() {
+      localStorage.setItem(STORAGE_LIST_KEY, defaultBaseList);
+      localStorage.setItem(STORAGE_DATE_KEY, defaultBaseDate);
+      loadBaseList();
+    }
+
+    function parseLine(line) {
+      const trimmed = line.trim();
+      const match = trimmed.match(/^الجزء\s*(\d+)\s+(.+)$/);
+      if (!match) return null;
+
+      const baseNum = Number(match[1]);
+      if (!Number.isInteger(baseNum) || baseNum < 1 || baseNum > 30) return null;
+
+      return {
+        baseNum,
+        names: match[2].trim()
+      };
+    }
+
+    function shiftNumber(baseNum, shift) {
+      const result = (baseNum + shift) % 30;
+      return result === 0 ? 30 : result;
+    }
+
+    function buildList(baseListText, baseDateISO) {
+      const cleaned = normalizeArabicSpaces(baseListText);
+      if (!cleaned) {
+        throw new Error("لم يتم العثور على قائمة أساسية.");
+      }
+
+      const baseDate = parseISODateToLocal(baseDateISO);
+      const today = toLocalDateOnly(new Date());
+
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const daysPassed = Math.floor((today - baseDate) / msPerDay);
+
+      const shift = daysPassed + 1;
+
+      const targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + 1);
+
+      const lines = cleaned
+        .split("\n")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+      const parsed = [];
+      for (const line of lines) {
+        const item = parseLine(line);
+        if (item) {
+          parsed.push({
+            ...item,
+            newNum: shiftNumber(item.baseNum, shift)
+          });
+        }
+      }
+
+      if (!parsed.length) {
+        throw new Error('لم يتم العثور على أسطر صحيحة. يجب أن يبدأ كل سطر بكلمة "الجزء".');
+      }
+
+      parsed.sort((a, b) => a.newNum - b.newNum);
+
+      const header = `القائمة ليوم ( ${formatDDMMYYYY(targetDate)} ) بإذن الله`;
+      const body = parsed.map(item => `الجزء ${item.newNum} ${item.names}`).join("\n");
+
+      return {
+        result: `${header}\n${body}`,
+        count: parsed.length,
+        baseDateISO,
+        daysPassed,
+        shift,
+        targetDateText: formatDDMMYYYY(targetDate)
+      };
+    }
+
+    function setEditMode(enabled) {
+      baseListEl.classList.toggle("hidden", !enabled);
+      toggleEditBtn.textContent = enabled ? "إنهاء التعديل" : "تعديل القائمة الأساسية";
+      if (enabled) {
+        baseListEl.focus();
+      } else {
+        saveBaseList();
+      }
+    }
+
+    buildBtn.addEventListener("click", () => {
+      try {
+        saveBaseList();
+        const baseDateISO = loadBaseDate();
+        const built = buildList(baseListEl.value, baseDateISO);
+
+        outputEl.value = built.result;
+        metaEl.textContent =
+          `التاريخ الأساسي: ${baseDateISO} • عدد الأيام منذ التاريخ الأساسي: ${built.daysPassed} • مقدار الزيادة: ${built.shift} • تاريخ الإخراج: ${built.targetDateText} • عدد الأسطر المعالجة: ${built.count}`;
+        setStatus("تم الإنشاء بنجاح.", "ok");
+      } catch (err) {
+        outputEl.value = "";
+        metaEl.textContent = "";
+        setStatus(err.message || "Something went wrong.", "err");
+      }
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      if (!outputEl.value.trim()) {
+        setStatus("لا يوجد شيء لنسخه بعد.", "err");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(outputEl.value);
+        setStatus("تم النسخ.", "ok");
+      } catch {
+        outputEl.select();
+        document.execCommand("copy");
+        setStatus("تم النسخ.", "ok");
+      }
+    });
+
+    toggleEditBtn.addEventListener("click", () => {
+      const isHidden = baseListEl.classList.contains("hidden");
+      setEditMode(isHidden);
+    });
+
+    setTodayBtn.addEventListener("click", () => {
+      const today = todayISO();
+      saveBaseDate(today);
+      setStatus(`تم تعيين التاريخ الأساسي إلى اليوم: ${today}`, "ok");
+      const built = buildList(baseListEl.value, today);
+      metaEl.textContent =
+        `التاريخ الأساسي: ${today} • عدد الأيام منذ التاريخ الأساسي: ${built.daysPassed} • مقدار الزيادة: ${built.shift} • تاريخ الإخراج: ${built.targetDateText} • عدد الأسطر المعالجة: ${built.count}`;
+    });
+
+    resetBtn.addEventListener("click", () => {
+      resetAll();
+      outputEl.value = "";
+      metaEl.textContent = `تمت إعادة التاريخ الأساسي إلى القيمة الافتراضية: ${defaultBaseDate}`;
+      setStatus("تمت إعادة تعيين القائمة الأساسية والتاريخ الأساسي.", "ok");
+    });
+
+    baseListEl.addEventListener("input", saveBaseList);
+
+    loadBaseList();
+    if (!localStorage.getItem(STORAGE_DATE_KEY)) {
+      saveBaseDate(defaultBaseDate);
+    }
+    setEditMode(false);
+    metaEl.textContent = `التاريخ الأساسي: ${loadBaseDate()}`;
+  </script>
+</body>
+</html>
